@@ -9,9 +9,11 @@ import (
 )
 
 var (
-	operatorIDKey   sqlplus.ContextKey = "operatorIDKey"
-	operatorNameKey sqlplus.ContextKey = "operatorNameKey"
-	OperatorColumn                     = NewOperatorColumn(
+	operatorIDKey       sqlplus.ContextKey = "operatorIDKey"
+	OperatorIDJsonKey                      = "operatorId"
+	operatorNameKey     sqlplus.ContextKey = "operatorNameKey"
+	OperatorNameJsonKey                    = "operatorName"
+	OperatorColumn                         = NewOperatorColumn(
 		&sqlplus.TableColumn{
 			Name: "operator_id",
 			Type: sqlparser.StrVal,
@@ -40,16 +42,18 @@ func OperatorPackHandlerSetContent(getOperatorFn sqlplus.GetValueFn, setOperator
 	setContexts := make([]sqlplus.SetContext, 0)
 	if OperatorColumn.ID != nil {
 		setContexts = append(setContexts, sqlplus.SetContext{
-			Key:   operatorIDKey,
-			GetFn: getOperatorFn,
-			SetFn: setOperatorFn,
+			ContextKey: operatorIDKey,
+			JsonKey:    OperatorIDJsonKey,
+			GetFn:      getOperatorFn,
+			SetFn:      setOperatorFn,
 		})
 	}
 	if OperatorColumn.Name != nil {
 		setContexts = append(setContexts, sqlplus.SetContext{
-			Key:   operatorNameKey,
-			GetFn: getOperatorFn,
-			SetFn: setOperatorFn,
+			ContextKey: operatorNameKey,
+			JsonKey:    OperatorNameJsonKey,
+			GetFn:      getOperatorFn,
+			SetFn:      setOperatorFn,
 		})
 	}
 	return sqlplus.SqlPlusPackHandlerSetContent(setContexts...)

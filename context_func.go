@@ -2,6 +2,7 @@ package sqlplus
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
@@ -35,12 +36,13 @@ func GetKeyValue(ctx context.Context, key ContextKey) (value string, err error) 
 	return value, nil
 }
 
-type GetValueFn func(ctx context.Context, key ContextKey, input []byte) (value string, err error)
-type SetValueFn func(ctx context.Context, key ContextKey, value string, input []byte) (out []byte, err error)
+type GetValueFn func(ctx context.Context, key string, input []byte) (value string, err error)
+type SetValueFn func(ctx context.Context, key string, value string, input []byte) (out []byte, err error)
 type SetContext struct {
-	Key   ContextKey
-	GetFn GetValueFn
-	SetFn SetValueFn
+	ContextKey ContextKey
+	JsonKey    string
+	GetFn      GetValueFn
+	SetFn      SetValueFn
 }
 
 // SqlPlusPackHandlerSetContent 从输入流中提取指定key,value 到ctx中，在输出流中自动添加对应的key
@@ -48,44 +50,44 @@ func SqlPlusPackHandlerSetContent(setContexts ...SetContext) (packHandler stream
 	packHandler = stream.NewPackHandlerWithSetContext(func(ctx context.Context, input []byte) (newCtx context.Context, out []byte, err error) {
 		for _, setContext := range setContexts {
 			if setContext.GetFn != nil {
-				value, err := setContext.GetFn(ctx, setContext.Key, input)
+				value, err := setContext.GetFn(ctx, setContext.JsonKey, input)
 				if err != nil {
 					return nil, nil, err
 				}
-				newCtx = SetKeyValue(ctx, setContext.Key, value)
+				newCtx = SetKeyValue(ctx, setContext.ContextKey, value)
 			}
 		}
 		return newCtx, input, nil
 	}, nil, func(ctx context.Context, input []byte) (out []byte, err error) {
 		for _, setContext := range setContexts {
 			if setContext.SetFn != nil {
-				value, err := GetKeyValue(ctx, setContext.Key)
+				value, err := GetKeyValue(ctx, setContext.ContextKey)
 				if err != nil {
 					return nil, err
 				}
-				out, err = setContext.SetFn(ctx, setContext.Key, value, input)
+				out, err = setContext.SetFn(ctx, setContext.JsonKey, value, input)
 				if err != nil {
 					return nil, err
 				}
 			}
 		}
-
 		return out, nil
 	})
 	return packHandler, nil
 }
 
 var (
-	ERROR_Stream_Tenant_Not_Found = errors.New("not found tenant id")
+	ERROR_Data_Not_Found = errors.New("not found key")
 )
 
 // GetKeyValueJsonFn 从json字符串中获取指定key value
-func GetKeyValueJsonFn(ctx context.Context, key string, input []byte) (tendId string, err error) {
-	tenantId := gjson.GetBytes(input, key).String()
-	if tenantId == "" {
-		return "", ERROR_Stream_Tenant_Not_Found
+func GetKeyValueJsonFn(ctx context.Context, key string, input []byte) (value string, err error) {
+	result := gjson.GetBytes(input, key)
+	if !result.Exists() {
+		return "", errors.WithMessage(ERROR_Data_Not_Found, fmt.Sprintf("key:%s", key))
 	}
-	return tenantId, nil
+	value = result.String()
+	return value, nil
 }
 
 // SetKeyValueJsonFn 将 key value 设置到输出json流中
