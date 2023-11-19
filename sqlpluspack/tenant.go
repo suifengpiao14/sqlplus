@@ -1,6 +1,8 @@
 package sqlpluspack
 
 import (
+	"context"
+
 	"github.com/blastrain/vitess-sqlparser/sqlparser"
 	"github.com/suifengpiao14/sqlplus"
 	"github.com/suifengpiao14/stream"
@@ -30,4 +32,9 @@ func TenantPackHandler(tenantID string) (packHandler stream.PackHandler) {
 	tableColumn := TenantColumnConfig
 	tableColumn.DynamicValue = tenantID
 	return sqlplus.CurdPackHandler(tableColumn)
+}
+
+// GetTenantIDFromContext 从上下文或缺租户ID
+func GetTenantIDFromContext(ctx context.Context) (tenantID string, err error) {
+	return sqlplus.GetKeyValue(ctx, tenantIDKey)
 }
