@@ -10,7 +10,7 @@ import (
 
 var (
 	tenantIDKey        sqlplus.ContextKey = "tenantIDKey" //ctx 上下文中的key
-	TenantJsonKey                         = "tenantID"    // json 数据中的key
+	TenantJsonKey                         = "tenantId"    // json 数据中的key
 	TenantColumnConfig                    = sqlplus.TableColumn{
 		Name: "tenant_id",
 		Type: sqlparser.StrVal,
