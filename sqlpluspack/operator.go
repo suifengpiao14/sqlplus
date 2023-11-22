@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	operatorContextKey sqlplus.ContextKey = "operatorKey"
+	operatorContextKey sqlplus.ContextKey = "operatorContextKey"
 	OperatorColumn                        = NewOperatorColumn(
 		&sqlplus.TableColumn{
 			Name: "operator_id",
@@ -147,5 +147,10 @@ func OperatorPackHandler(operator Operator) (packHandler stream.PackHandler) {
 		}
 		tableColumns = append(tableColumns, *operatorNametableColumn)
 	}
-	return sqlplus.AddColumnPackHandler(tableColumns...)
+	// 新增，修改时增加操作人
+	scenes := sqlplus.Scenes{
+		sqlplus.Scene_Insert_Column,
+		sqlplus.Scene_Update_Column,
+	}
+	return sqlplus.PlusPackHandler(scenes, tableColumns...)
 }

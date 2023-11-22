@@ -94,8 +94,8 @@ var (
 	ERROR_SQL_EMPTY = errors.New("empty sql")
 )
 
-// WithPlusWhereScene 扩展sql 的where 条件
-func WithPlusWhereScene(sqlStr string, tableColumns ...TableColumn) (newSql string, err error) {
+// WithPlusScene 扩展sql 的where 条件
+func WithPlusScene(sqlStr string, scenes Scenes, tableColumns ...TableColumn) (newSql string, err error) {
 	newSql = sqlStr // 设置默认值
 	if sqlStr == "" {
 		return "", errors.WithMessage(ERROR_SQL_EMPTY, funcs.GetCallFuncname(0))
@@ -106,65 +106,55 @@ func WithPlusWhereScene(sqlStr string, tableColumns ...TableColumn) (newSql stri
 	}
 	switch stmt := stmt.(type) {
 	case *sqlparser.Select:
-		stmt.Where = withPlusWhere(stmt.Where, stmt.From, tableColumns...)
-		newSql = sqlparser.String(stmt)
-		return newSql, nil
-	case *sqlparser.Update:
-		stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
-		newSql := sqlparser.String(stmt)
-		return newSql, nil
-	case *sqlparser.Delete:
-		stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
-		newSql := sqlparser.String(stmt)
-		return newSql, nil
-
-	}
-	return newSql, nil
-}
-
-// WithPlusColumnScene 扩展sql 新增、修改、删除时变更的字段
-func WithPlusColumnScene(sqlStr string, tableColumns ...TableColumn) (newSql string, err error) {
-	newSql = sqlStr
-	if sqlStr == "" {
-		return "", errors.WithMessage(ERROR_SQL_EMPTY, funcs.GetCallFuncname(0))
-	}
-	stmt, err := sqlparser.Parse(sqlStr)
-	if err != nil {
-		return "", err
-	}
-	switch stmt := stmt.(type) {
-	case *sqlparser.Insert:
-		withInsertPlusToColumns(stmt, stmt.Table, tableColumns...)
-		newSql := sqlparser.String(stmt)
-		return newSql, nil
-	case *sqlparser.Update:
-		withUpdatePlusToColumns(stmt, stmt.TableExprs, tableColumns...)
-		newSql := sqlparser.String(stmt)
-		return newSql, nil
-	}
-	// 其它类型不处理
-	return newSql, nil
-}
-
-// AddWherePackHandler 柯里化增删改查sql插件(如多租户场景)
-func AddWherePackHandler(tableColumns ...TableColumn) (packHandler stream.PackHandler) {
-	packHandler = stream.NewPackHandler(func(ctx context.Context, input []byte) (out []byte, err error) {
-		sql := string(input)
-		newSql, err := WithPlusWhereScene(sql, tableColumns...)
-		if err != nil {
-			return nil, err
+		if scenes.Exists(Scene_Select_Where) {
+			stmt.Where = withPlusWhere(stmt.Where, stmt.From, tableColumns...)
 		}
-		out = []byte(newSql)
-		return out, nil
-	}, nil)
-	return packHandler
+	case *sqlparser.Update:
+		if scenes.Exists(Scene_Update_Where) {
+			stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
+		}
+		if scenes.Exists(Scene_Update_Column) {
+			withUpdatePlusToColumns(stmt, stmt.TableExprs, tableColumns...)
+		}
+	case *sqlparser.Insert:
+		if scenes.Exists(Scene_Insert_Column) {
+			withInsertPlusToColumns(stmt, stmt.Table, tableColumns...)
+		}
+	case *sqlparser.Delete:
+		if scenes.Exists(Scene_Delete_Where) {
+			stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
+		}
+	}
+	newSql = sqlparser.String(stmt)
+	return newSql, nil
 }
 
-// AddColumnPackHandler 柯里化增改删sql插件,排除查询(如记录操作人场景)
-func AddColumnPackHandler(tableColumns ...TableColumn) (packHandler stream.PackHandler) {
+type Scene string
+
+type Scenes []Scene
+
+func (ss Scenes) Exists(scene Scene) bool {
+	for _, s := range ss {
+		if s == scene {
+			return true
+		}
+	}
+	return false
+}
+
+const (
+	Scene_Select_Where  Scene = "select_where"
+	Scene_Update_Where  Scene = "update_where"
+	Scene_Delete_Where  Scene = "delete_where"
+	Scene_Update_Column Scene = "update_column"
+	Scene_Insert_Column Scene = "insert_column"
+)
+
+// PlusPackHandler 柯里化增删改查sql插件(如多租户场景)
+func PlusPackHandler(scenes Scenes, tableColumns ...TableColumn) (packHandler stream.PackHandler) {
 	packHandler = stream.NewPackHandler(func(ctx context.Context, input []byte) (out []byte, err error) {
 		sql := string(input)
-		newSql, err := WithPlusColumnScene(sql, tableColumns...)
+		newSql, err := WithPlusScene(sql, scenes, tableColumns...)
 		if err != nil {
 			return nil, err
 		}
