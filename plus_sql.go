@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"github.com/suifengpiao14/funcs"
 	"github.com/suifengpiao14/stream"
 
 	"github.com/blastrain/vitess-sqlparser/sqlparser"
@@ -55,8 +56,8 @@ func withPlusWhere(where *sqlparser.Where, tableExprs sqlparser.TableExprs, tabl
 	return where
 }
 
-// withPlusToColumns 将多租户字段添加到列中
-func withPlusToColumns(insertExpr *sqlparser.Insert, tableName sqlparser.TableName, tableColumns ...TableColumn) {
+// withInsertPlusToColumns 新增sql中增加列
+func withInsertPlusToColumns(insertExpr *sqlparser.Insert, tableName sqlparser.TableName, tableColumns ...TableColumn) {
 	for _, tableColumn := range tableColumns {
 		colIdent := sqlparser.NewColIdent(tableColumn.Name)
 		insertExpr.Columns = append(insertExpr.Columns, colIdent)
@@ -65,11 +66,40 @@ func withPlusToColumns(insertExpr *sqlparser.Insert, tableName sqlparser.TableNa
 			insertExpr.Rows.(sqlparser.Values)[i] = append(insertExpr.Rows.(sqlparser.Values)[i], valExpr)
 		}
 	}
-
 }
 
-// WithPlusCurdScene 对增删改查sql 扩展数据
-func WithPlusCurdScene(sqlStr string, tableColumns ...TableColumn) (newSqlStr string, err error) {
+// withUpdatePlusToColumns 修改sql中增加列
+func withUpdatePlusToColumns(updateExpr *sqlparser.Update, tableExprs sqlparser.TableExprs, tableColumns ...TableColumn) {
+	for _, tableColumn := range tableColumns {
+		colIdent := sqlparser.NewColIdent(tableColumn.Name)
+		column := &sqlparser.ColName{Name: colIdent}
+		exits := false
+		for _, expr := range updateExpr.Exprs {
+			if expr.Name.Equal(column) {
+				exits = true
+				break
+			}
+		}
+		if exits {
+			continue
+		}
+		// 创建一个新的列更新，并添加到 UPDATE 语句中
+		valExpr := &sqlparser.SQLVal{Type: tableColumn.Type, Val: []byte(tableColumn.DynamicValue)}
+		assignment := &sqlparser.UpdateExpr{Name: column, Expr: valExpr}
+		updateExpr.Exprs = append(updateExpr.Exprs, assignment)
+	}
+}
+
+var (
+	ERROR_SQL_EMPTY = errors.New("empty sql")
+)
+
+// WithPlusWhereScene 扩展sql 的where 条件
+func WithPlusWhereScene(sqlStr string, tableColumns ...TableColumn) (newSql string, err error) {
+	newSql = sqlStr // 设置默认值
+	if sqlStr == "" {
+		return "", errors.WithMessage(ERROR_SQL_EMPTY, funcs.GetCallFuncname(0))
+	}
 	stmt, err := sqlparser.Parse(sqlStr)
 	if err != nil {
 		return "", err
@@ -77,44 +107,50 @@ func WithPlusCurdScene(sqlStr string, tableColumns ...TableColumn) (newSqlStr st
 	switch stmt := stmt.(type) {
 	case *sqlparser.Select:
 		stmt.Where = withPlusWhere(stmt.Where, stmt.From, tableColumns...)
+		newSql = sqlparser.String(stmt)
+		return newSql, nil
+	case *sqlparser.Update:
+		stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
 		newSql := sqlparser.String(stmt)
 		return newSql, nil
+	case *sqlparser.Delete:
+		stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
+		newSql := sqlparser.String(stmt)
+		return newSql, nil
+
 	}
-	return WithPlusCudScene(sqlStr, tableColumns...)
+	return newSql, nil
 }
 
-// WithPlusCudScene 对增删改命令sql 扩展数据,排除查询
-func WithPlusCudScene(sqlStr string, tableColumns ...TableColumn) (newSqlStr string, err error) {
+// WithPlusColumnScene 扩展sql 新增、修改、删除时变更的字段
+func WithPlusColumnScene(sqlStr string, tableColumns ...TableColumn) (newSql string, err error) {
+	newSql = sqlStr
+	if sqlStr == "" {
+		return "", errors.WithMessage(ERROR_SQL_EMPTY, funcs.GetCallFuncname(0))
+	}
 	stmt, err := sqlparser.Parse(sqlStr)
 	if err != nil {
 		return "", err
 	}
 	switch stmt := stmt.(type) {
 	case *sqlparser.Insert:
-
-		withPlusToColumns(stmt, stmt.Table, tableColumns...)
+		withInsertPlusToColumns(stmt, stmt.Table, tableColumns...)
 		newSql := sqlparser.String(stmt)
 		return newSql, nil
 	case *sqlparser.Update:
-
-		stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
-		newSql := sqlparser.String(stmt)
-		return newSql, nil
-	case *sqlparser.Delete:
-
-		stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
+		withUpdatePlusToColumns(stmt, stmt.TableExprs, tableColumns...)
 		newSql := sqlparser.String(stmt)
 		return newSql, nil
 	}
-	err = Err_Unsupported_statement
-	return "", err
+	// 其它类型不处理
+	return newSql, nil
 }
 
-// CurdPackHandler 柯里化增删改查sql插件(如多租户场景)
-func CurdPackHandler(tableColumns ...TableColumn) (packHandler stream.PackHandler) {
+// AddWherePackHandler 柯里化增删改查sql插件(如多租户场景)
+func AddWherePackHandler(tableColumns ...TableColumn) (packHandler stream.PackHandler) {
 	packHandler = stream.NewPackHandler(func(ctx context.Context, input []byte) (out []byte, err error) {
 		sql := string(input)
-		newSql, err := WithPlusCurdScene(sql, tableColumns...)
+		newSql, err := WithPlusWhereScene(sql, tableColumns...)
 		if err != nil {
 			return nil, err
 		}
@@ -124,11 +160,11 @@ func CurdPackHandler(tableColumns ...TableColumn) (packHandler stream.PackHandle
 	return packHandler
 }
 
-// CudPackHandler 柯里化增改删sql插件,排除查询(如记录操作人场景)
-func CudPackHandler(tableColumns ...TableColumn) (packHandler stream.PackHandler) {
+// AddColumnPackHandler 柯里化增改删sql插件,排除查询(如记录操作人场景)
+func AddColumnPackHandler(tableColumns ...TableColumn) (packHandler stream.PackHandler) {
 	packHandler = stream.NewPackHandler(func(ctx context.Context, input []byte) (out []byte, err error) {
 		sql := string(input)
-		newSql, err := WithPlusCudScene(sql, tableColumns...)
+		newSql, err := WithPlusColumnScene(sql, tableColumns...)
 		if err != nil {
 			return nil, err
 		}

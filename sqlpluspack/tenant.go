@@ -31,7 +31,7 @@ func TenantPackHandlerSetContent(getTenantIDFn sqlplus.GetValueFn, setTenantIDFn
 func TenantPackHandler(tenantID string) (packHandler stream.PackHandler) {
 	tableColumn := TenantColumnConfig
 	tableColumn.DynamicValue = tenantID
-	return sqlplus.CurdPackHandler(tableColumn)
+	return sqlplus.AddWherePackHandler(tableColumn)
 }
 
 // GetTenantIDFromContext 从上下文获取租户ID

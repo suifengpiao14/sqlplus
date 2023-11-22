@@ -3,6 +3,7 @@ package sqlpluspack
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/blastrain/vitess-sqlparser/sqlparser"
 	jsonpatch "github.com/evanphx/json-patch/v5"
@@ -37,8 +38,8 @@ func NewOperatorColumn(id *sqlplus.TableColumn, name *sqlplus.TableColumn) _Oper
 }
 
 type Operator struct {
-	ID   string `json:"operatorId"`
-	Name string `json:"operatorName"`
+	ID   *string `json:"operatorId"`
+	Name *string `json:"operatorName"`
 }
 
 // GetOperatorFromContext 从上下文获取操作者
@@ -63,6 +64,14 @@ func GetOperatorJsonFn(ctx context.Context, input []byte) (operator *Operator, e
 	operator = &Operator{}
 	err = json.Unmarshal(input, operator)
 	if err != nil {
+		return nil, err
+	}
+	if OperatorColumn.ID != nil && operator.ID == nil {
+		err = errors.New("opreatorId required")
+		return nil, err
+	}
+	if OperatorColumn.Name != nil && operator.Name == nil {
+		err = errors.New("opreatorName required")
 		return nil, err
 	}
 	return operator, nil
@@ -126,13 +135,17 @@ func OperatorPackHandler(operator Operator) (packHandler stream.PackHandler) {
 	tableColumns := make([]sqlplus.TableColumn, 0)
 	if OperatorColumn.ID != nil {
 		operatorIDtableColumn := OperatorColumn.ID
-		operatorIDtableColumn.DynamicValue = operator.ID
+		if operator.ID != nil {
+			operatorIDtableColumn.DynamicValue = *operator.ID
+		}
 		tableColumns = append(tableColumns, *operatorIDtableColumn)
 	}
 	if OperatorColumn.Name != nil {
 		operatorNametableColumn := OperatorColumn.Name
-		operatorNametableColumn.DynamicValue = operator.Name
+		if operator.Name != nil {
+			operatorNametableColumn.DynamicValue = *operator.Name
+		}
 		tableColumns = append(tableColumns, *operatorNametableColumn)
 	}
-	return sqlplus.CudPackHandler(tableColumns...)
+	return sqlplus.AddColumnPackHandler(tableColumns...)
 }
