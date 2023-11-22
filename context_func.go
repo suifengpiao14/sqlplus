@@ -38,6 +38,36 @@ func GetKeyValue(ctx context.Context, key ContextKey) (value string, err error) 
 
 type GetValueFn func(ctx context.Context, key string, input []byte) (value string, err error)
 type SetValueFn func(ctx context.Context, key string, value string, input []byte) (out []byte, err error)
+
+var (
+	ERROR_Data_Not_Found = errors.New("not found key")
+)
+
+// GetKeyValueJsonFn 从json字符串中获取指定key value
+func GetKeyValueJsonFn(ctx context.Context, key string, input []byte) (value string, err error) {
+	if key == "" {
+		return "", nil
+	}
+	result := gjson.GetBytes(input, key)
+	if !result.Exists() {
+		return "", errors.WithMessage(ERROR_Data_Not_Found, fmt.Sprintf("key:%s", key))
+	}
+	value = result.String()
+	return value, nil
+}
+
+// SetKeyValueJsonFn 将 key value 设置到输出json流中
+func SetKeyValueJsonFn(ctx context.Context, key string, value string, input []byte) (out []byte, err error) {
+	if key == "" {
+		return nil, nil
+	}
+	out, err = sjson.SetBytes(input, key, value)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 type SetContext struct {
 	ContextKey ContextKey
 	JsonKey    string
@@ -74,27 +104,4 @@ func SqlPlusPackHandlerSetContent(setContexts ...SetContext) (packHandler stream
 		return out, nil
 	})
 	return packHandler, nil
-}
-
-var (
-	ERROR_Data_Not_Found = errors.New("not found key")
-)
-
-// GetKeyValueJsonFn 从json字符串中获取指定key value
-func GetKeyValueJsonFn(ctx context.Context, key string, input []byte) (value string, err error) {
-	result := gjson.GetBytes(input, key)
-	if !result.Exists() {
-		return "", errors.WithMessage(ERROR_Data_Not_Found, fmt.Sprintf("key:%s", key))
-	}
-	value = result.String()
-	return value, nil
-}
-
-// SetKeyValueJsonFn 将 key value 设置到输出json流中
-func SetKeyValueJsonFn(ctx context.Context, key string, value string, input []byte) (out []byte, err error) {
-	out, err = sjson.SetBytes(input, key, value)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }

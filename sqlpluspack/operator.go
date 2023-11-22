@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 
 	"github.com/blastrain/vitess-sqlparser/sqlparser"
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/suifengpiao14/sqlplus"
 	"github.com/suifengpiao14/stream"
 )
 
 var (
 	operatorContextKey sqlplus.ContextKey = "operatorKey"
-	OperatorJsonKey                       = "operator"
 	OperatorColumn                        = NewOperatorColumn(
 		&sqlplus.TableColumn{
 			Name: "operator_id",
@@ -37,8 +37,8 @@ func NewOperatorColumn(id *sqlplus.TableColumn, name *sqlplus.TableColumn) _Oper
 }
 
 type Operator struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID   string `json:"operatorId"`
+	Name string `json:"operatorName"`
 }
 
 // GetOperatorFromContext 从上下文获取操作者
@@ -55,16 +55,42 @@ func GetOperatorFromContext(ctx context.Context) (operator *Operator, err error)
 	return operator, nil
 }
 
-type GetOperatorValueFn func(ctx context.Context, key string, input []byte) (value Operator, err error)
-type SetOperatorValueFn func(ctx context.Context, key string, value Operator, input []byte) (out []byte, err error)
+type GetOperatorValueFn func(ctx context.Context, input []byte) (value *Operator, err error)
+type SetOperatorValueFn func(ctx context.Context, value Operator, input []byte) (out []byte, err error)
+
+// GetOperatorJsonFn 从json字符串中获取 operator
+func GetOperatorJsonFn(ctx context.Context, input []byte) (operator *Operator, err error) {
+	operator = &Operator{}
+	err = json.Unmarshal(input, operator)
+	if err != nil {
+		return nil, err
+	}
+	return operator, nil
+}
+
+// SetOperatorJsonFn 将 operator 设置到json字符串中
+func SetOperatorJsonFn(ctx context.Context, operator Operator, input []byte) (out []byte, err error) {
+	b, err := json.Marshal(operator)
+	if err != nil {
+		return nil, err
+	}
+	out, err = jsonpatch.MergePatch(input, b)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
 
 // OperatorPackHandlerSetContent 从输入流中提取operatorId 到ctx中，在输出流中自动添加operatorId
-func OperatorPackHandlerSetContent(getOperatorFn sqlplus.GetValueFn, setOperatorFn SetOperatorValueFn) (packHandler stream.PackHandler, err error) {
+func OperatorPackHandlerSetContent(getOperatorFn GetOperatorValueFn, setOperatorFn SetOperatorValueFn) (packHandler stream.PackHandler, err error) {
 	setContext := sqlplus.SetContext{
 		ContextKey: operatorContextKey,
-		JsonKey:    OperatorJsonKey,
+		JsonKey:    "",
 		GetFn: func(ctx context.Context, key string, input []byte) (value string, err error) {
-			operator, err := getOperatorFn(ctx, key, input)
+			if getOperatorFn == nil {
+				return "", nil
+			}
+			operator, err := getOperatorFn(ctx, input)
 			if err != nil {
 				return "", err
 			}
@@ -75,13 +101,16 @@ func OperatorPackHandlerSetContent(getOperatorFn sqlplus.GetValueFn, setOperator
 			value = string(b)
 			return value, nil
 		},
-		SetFn: func(ctx context.Context, key, value string, input []byte) (out []byte, err error) {
+		SetFn: func(ctx context.Context, key string, value string, input []byte) (out []byte, err error) {
+			if setOperatorFn == nil {
+				return input, err
+			}
 			operator := &Operator{}
 			err = json.Unmarshal([]byte(value), operator)
 			if err != nil {
 				return nil, err
 			}
-			out, err = setOperatorFn(ctx, key, *operator, input)
+			out, err = setOperatorFn(ctx, *operator, input)
 			if err != nil {
 				return nil, err
 			}
@@ -90,20 +119,6 @@ func OperatorPackHandlerSetContent(getOperatorFn sqlplus.GetValueFn, setOperator
 	}
 
 	return sqlplus.SqlPlusPackHandlerSetContent(setContext)
-}
-
-var (
-	Stream_Operator_json_key = "operatorId" // 多住户json key
-)
-
-// GetOperatorIDJsonFn 从json字符串中获取 operatorId
-func GetOperatorIDJsonFn(ctx context.Context, input []byte) (tendId string, err error) {
-	return sqlplus.GetKeyValueJsonFn(ctx, Stream_Operator_json_key, input)
-}
-
-// SetOperatorIDJsonFn 将 operatorId 设置到json字符串中
-func SetOperatorIDJsonFn(ctx context.Context, input []byte, operatorId string) (out []byte, err error) {
-	return sqlplus.SetKeyValueJsonFn(ctx, Stream_Operator_json_key, operatorId, input)
 }
 
 // OperatorPackHandler 柯里化操作人组件
