@@ -34,7 +34,7 @@ func TenantPackHandler(tenantID string) (packHandler stream.PackHandler) {
 	return sqlplus.CurdPackHandler(tableColumn)
 }
 
-// GetTenantIDFromContext 从上下文或缺租户ID
+// GetTenantIDFromContext 从上下文获取租户ID
 func GetTenantIDFromContext(ctx context.Context) (tenantID string, err error) {
 	return sqlplus.GetKeyValue(ctx, tenantIDKey)
 }

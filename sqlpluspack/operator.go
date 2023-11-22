@@ -2,6 +2,7 @@ package sqlpluspack
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/blastrain/vitess-sqlparser/sqlparser"
 	"github.com/suifengpiao14/sqlplus"
@@ -9,11 +10,9 @@ import (
 )
 
 var (
-	operatorIDKey       sqlplus.ContextKey = "operatorIDKey"
-	OperatorIDJsonKey                      = "operatorId"
-	operatorNameKey     sqlplus.ContextKey = "operatorNameKey"
-	OperatorNameJsonKey                    = "operatorName"
-	OperatorColumn                         = NewOperatorColumn(
+	operatorContextKey sqlplus.ContextKey = "operatorKey"
+	OperatorJsonKey                       = "operator"
+	OperatorColumn                        = NewOperatorColumn(
 		&sqlplus.TableColumn{
 			Name: "operator_id",
 			Type: sqlparser.StrVal,
@@ -37,26 +36,60 @@ func NewOperatorColumn(id *sqlplus.TableColumn, name *sqlplus.TableColumn) _Oper
 	}
 }
 
+type Operator struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// GetOperatorFromContext 从上下文获取操作者
+func GetOperatorFromContext(ctx context.Context) (operator *Operator, err error) {
+	value, err := sqlplus.GetKeyValue(ctx, operatorContextKey)
+	if err != nil {
+		return nil, err
+	}
+	operator = &Operator{}
+	err = json.Unmarshal([]byte(value), operator)
+	if err != nil {
+		return nil, err
+	}
+	return operator, nil
+}
+
+type GetOperatorValueFn func(ctx context.Context, key string, input []byte) (value Operator, err error)
+type SetOperatorValueFn func(ctx context.Context, key string, value Operator, input []byte) (out []byte, err error)
+
 // OperatorPackHandlerSetContent 从输入流中提取operatorId 到ctx中，在输出流中自动添加operatorId
-func OperatorPackHandlerSetContent(getOperatorFn sqlplus.GetValueFn, setOperatorFn sqlplus.SetValueFn) (packHandler stream.PackHandler, err error) {
-	setContexts := make([]sqlplus.SetContext, 0)
-	if OperatorColumn.ID != nil {
-		setContexts = append(setContexts, sqlplus.SetContext{
-			ContextKey: operatorIDKey,
-			JsonKey:    OperatorIDJsonKey,
-			GetFn:      getOperatorFn,
-			SetFn:      setOperatorFn,
-		})
+func OperatorPackHandlerSetContent(getOperatorFn sqlplus.GetValueFn, setOperatorFn SetOperatorValueFn) (packHandler stream.PackHandler, err error) {
+	setContext := sqlplus.SetContext{
+		ContextKey: operatorContextKey,
+		JsonKey:    OperatorJsonKey,
+		GetFn: func(ctx context.Context, key string, input []byte) (value string, err error) {
+			operator, err := getOperatorFn(ctx, key, input)
+			if err != nil {
+				return "", err
+			}
+			b, err := json.Marshal(operator)
+			if err != nil {
+				return "", err
+			}
+			value = string(b)
+			return value, nil
+		},
+		SetFn: func(ctx context.Context, key, value string, input []byte) (out []byte, err error) {
+			operator := &Operator{}
+			err = json.Unmarshal([]byte(value), operator)
+			if err != nil {
+				return nil, err
+			}
+			out, err = setOperatorFn(ctx, key, *operator, input)
+			if err != nil {
+				return nil, err
+			}
+			return out, nil
+		},
 	}
-	if OperatorColumn.Name != nil {
-		setContexts = append(setContexts, sqlplus.SetContext{
-			ContextKey: operatorNameKey,
-			JsonKey:    OperatorNameJsonKey,
-			GetFn:      getOperatorFn,
-			SetFn:      setOperatorFn,
-		})
-	}
-	return sqlplus.SqlPlusPackHandlerSetContent(setContexts...)
+
+	return sqlplus.SqlPlusPackHandlerSetContent(setContext)
 }
 
 var (
@@ -74,18 +107,17 @@ func SetOperatorIDJsonFn(ctx context.Context, input []byte, operatorId string) (
 }
 
 // OperatorPackHandler 柯里化操作人组件
-func OperatorPackHandler(operatorID string, operatorName string) (packHandler stream.PackHandler) {
+func OperatorPackHandler(operator Operator) (packHandler stream.PackHandler) {
 	tableColumns := make([]sqlplus.TableColumn, 0)
 	if OperatorColumn.ID != nil {
 		operatorIDtableColumn := OperatorColumn.ID
-		operatorIDtableColumn.DynamicValue = operatorID
+		operatorIDtableColumn.DynamicValue = operator.ID
 		tableColumns = append(tableColumns, *operatorIDtableColumn)
 	}
 	if OperatorColumn.Name != nil {
 		operatorNametableColumn := OperatorColumn.Name
-		operatorNametableColumn.DynamicValue = operatorName
+		operatorNametableColumn.DynamicValue = operator.Name
 		tableColumns = append(tableColumns, *operatorNametableColumn)
 	}
-
 	return sqlplus.CudPackHandler(tableColumns...)
 }
