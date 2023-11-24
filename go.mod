@@ -9,7 +9,7 @@ require (
 	github.com/spf13/cast v1.5.1
 	github.com/stretchr/testify v1.8.4
 	github.com/suifengpiao14/funcs v0.0.16
-	github.com/suifengpiao14/stream v0.0.16
+	github.com/suifengpiao14/stream v0.0.17
 	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/sjson v1.2.5
 )
