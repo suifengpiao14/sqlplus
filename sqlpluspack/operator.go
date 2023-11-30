@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	operatorContextKey sqlplus.ContextKey = "operatorContextKey"
-	OperatorColumn                        = NewOperatorColumn(
+	operatorContextKey stream.ContextKey = "operatorContextKey"
+	OperatorColumn                       = NewOperatorColumn(
 		&sqlplus.TableColumn{
 			Name: "operator_id",
 			Type: sqlparser.StrVal,
@@ -44,7 +44,7 @@ type Operator struct {
 
 // GetOperatorFromContext 从上下文获取操作者
 func GetOperatorFromContext(ctx context.Context) (operator *Operator, err error) {
-	value, err := sqlplus.GetKeyValue(ctx, operatorContextKey)
+	value, err := stream.GetKeyValue(ctx, operatorContextKey)
 	if err != nil {
 		return nil, err
 	}
@@ -90,9 +90,13 @@ func SetOperatorJsonFn(ctx context.Context, operator Operator, input []byte) (ou
 	return out, nil
 }
 
+type SetContextOperatorPackHandler struct {
+	stream.SetContextPacketHandler
+}
+
 // OperatorPackHandlerSetContent 从输入流中提取operatorId 到ctx中，在输出流中自动添加operatorId
-func OperatorPackHandlerSetContent(getOperatorFn GetOperatorValueFn, setOperatorFn SetOperatorValueFn) (packHandler stream.PackHandler, err error) {
-	setContext := sqlplus.SetContext{
+func NewSetContextOperatorPackHandler(getOperatorFn GetOperatorValueFn, setOperatorFn SetOperatorValueFn) (packHandler stream.PacketHandlerI) {
+	setContext := stream.SetContext{
 		ContextKey: operatorContextKey,
 		JsonKey:    "",
 		GetFn: func(ctx context.Context, key string, input []byte) (value string, err error) {
@@ -127,11 +131,74 @@ func OperatorPackHandlerSetContent(getOperatorFn GetOperatorValueFn, setOperator
 		},
 	}
 
-	return sqlplus.SqlPlusPackHandlerSetContent(setContext)
+	basic := stream.NewSetContextPacketHandler(setContext)
+	setContextPacket := basic.(stream.SetContextPacketHandler)
+	return &SetContextOperatorPackHandler{
+		SetContextPacketHandler: setContextPacket,
+	}
+}
+
+// NewSetContentOperatorPackHandlerSetContent 从输入流中提取operatorId 到ctx中，在输出流中自动添加operatorId
+func NewSetContentOperatorPackHandlerSetContent(getOperatorFn GetOperatorValueFn, setOperatorFn SetOperatorValueFn) (packHandler stream.PacketHandlerI) {
+	setContext := stream.SetContext{
+		ContextKey: operatorContextKey,
+		JsonKey:    "",
+		GetFn: func(ctx context.Context, key string, input []byte) (value string, err error) {
+			if getOperatorFn == nil {
+				return "", nil
+			}
+			operator, err := getOperatorFn(ctx, input)
+			if err != nil {
+				return "", err
+			}
+			b, err := json.Marshal(operator)
+			if err != nil {
+				return "", err
+			}
+			value = string(b)
+			return value, nil
+		},
+		SetFn: func(ctx context.Context, key string, value string, input []byte) (out []byte, err error) {
+			if setOperatorFn == nil {
+				return input, err
+			}
+			operator := &Operator{}
+			err = json.Unmarshal([]byte(value), operator)
+			if err != nil {
+				return nil, err
+			}
+			out, err = setOperatorFn(ctx, *operator, input)
+			if err != nil {
+				return nil, err
+			}
+			return out, nil
+		},
+	}
+
+	return stream.NewSetContextPacketHandler(setContext)
+}
+
+type OperatorPackHandler struct {
+	Operator Operator `json:"operator"`
+	sqlplus.SqlPlusPacketHandler
+}
+
+func (packet *OperatorPackHandler) Name() string {
+	return stream.GeneratePacketHandlerName(packet)
+}
+
+func (packet *OperatorPackHandler) Description() string {
+	return `在新增、修改、删除操作的sql中增加操作人`
+}
+
+func (packet *OperatorPackHandler) String() string {
+	b, _ := json.Marshal(packet)
+	s := string(b)
+	return s
 }
 
 // OperatorPackHandler 柯里化操作人组件
-func OperatorPackHandler(operator Operator) (packHandler stream.PackHandler) {
+func NewOperatorPackHandler(operator Operator) (packHandler stream.PacketHandlerI) {
 	tableColumns := make([]sqlplus.TableColumn, 0)
 	if OperatorColumn.ID != nil {
 		operatorIDtableColumn := OperatorColumn.ID
@@ -152,5 +219,10 @@ func OperatorPackHandler(operator Operator) (packHandler stream.PackHandler) {
 		sqlplus.Scene_Insert_Column,
 		sqlplus.Scene_Update_Column,
 	}
-	return sqlplus.PlusPackHandler(scenes, tableColumns...)
+	handler := sqlplus.NewSqlPlusPacketHandler(scenes, tableColumns...)
+	sqlPlusPacket := handler.(*sqlplus.SqlPlusPacketHandler)
+	return &OperatorPackHandler{
+		Operator:             operator,
+		SqlPlusPacketHandler: *sqlPlusPacket,
+	}
 }

@@ -2,6 +2,7 @@ package sqlplus
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/pkg/errors"
 	"github.com/suifengpiao14/funcs"
@@ -150,16 +151,42 @@ const (
 	Scene_Insert_Column Scene = "insert_column"
 )
 
-// PlusPackHandler 柯里化增删改查sql插件(如多租户场景)
-func PlusPackHandler(scenes Scenes, tableColumns ...TableColumn) (packHandler stream.PackHandler) {
-	packHandler = stream.NewPackHandler(func(ctx context.Context, input []byte) (out []byte, err error) {
-		sql := string(input)
-		newSql, err := WithPlusScene(sql, scenes, tableColumns...)
-		if err != nil {
-			return nil, err
-		}
-		out = []byte(newSql)
-		return out, nil
-	}, nil)
-	return packHandler
+type SqlPlusPacketHandler struct {
+	Scenes       Scenes        `json:"scenes"`
+	TableColumns []TableColumn `json:"tableColumns"`
+}
+
+// NewSqlPlusPacketHandler sql 增删改查语句扩展
+func NewSqlPlusPacketHandler(scenes Scenes, tableColumns ...TableColumn) (packHandler stream.PacketHandlerI) {
+	return &SqlPlusPacketHandler{
+		Scenes:       scenes,
+		TableColumns: tableColumns,
+	}
+}
+
+func (packet *SqlPlusPacketHandler) Name() string {
+	return stream.GeneratePacketHandlerName(packet)
+}
+func (packet *SqlPlusPacketHandler) String() string {
+	b, _ := json.Marshal(packet)
+	s := string(b)
+	return s
+}
+
+func (packet *SqlPlusPacketHandler) Description() string {
+	return `根据配置,解析传入的sql,修改、新增内容后再形成新的sql输出`
+}
+
+func (packet *SqlPlusPacketHandler) Before(ctx context.Context, input []byte) (newCtx context.Context, out []byte, err error) {
+	sql := string(input)
+	newSql, err := WithPlusScene(sql, packet.Scenes, packet.TableColumns...)
+	if err != nil {
+		return ctx, nil, err
+	}
+	out = []byte(newSql)
+	return ctx, out, nil
+}
+
+func (packet *SqlPlusPacketHandler) After(ctx context.Context, input []byte) (newCtx context.Context, out []byte, err error) {
+	return ctx, input, nil
 }
