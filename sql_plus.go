@@ -1,11 +1,8 @@
 package sqlplus
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
 	"github.com/suifengpiao14/funcs"
-	"github.com/suifengpiao14/stream"
 
 	"github.com/blastrain/vitess-sqlparser/sqlparser"
 )
@@ -150,17 +147,3 @@ const (
 	Scene_Update_Column Scene = "update_column"
 	Scene_Insert_Column Scene = "insert_column"
 )
-
-// PlusPackHandler 柯里化增删改查sql插件(如多租户场景)
-func PlusPackHandler(scenes Scenes, tableColumns ...TableColumn) (packHandler stream.PackHandler) {
-	packHandler = stream.NewPackHandler(func(ctx context.Context, input []byte) (out []byte, err error) {
-		sql := string(input)
-		newSql, err := WithPlusScene(sql, scenes, tableColumns...)
-		if err != nil {
-			return nil, err
-		}
-		out = []byte(newSql)
-		return out, nil
-	}, nil)
-	return packHandler
-}
