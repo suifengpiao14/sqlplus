@@ -14,6 +14,7 @@ type TableColumn struct {
 	TableName    string            `json:"tableName"`
 	Name         string            `json:"name"`
 	Type         sqlparser.ValType `json:"type"`
+	IsUnique     bool              `json:"isUnique"`
 	DynamicValue string            `json:"value"`
 }
 
