@@ -24,28 +24,22 @@ func ConvertUpdateToSelect(stmt *sqlparser.Update) (selectSQL string) {
 // ConvertUpdateToInsert 将update 语句转为insert ,在模拟实现replace(set 场景)有用
 func ConvertUpdateToInsert(stmt *sqlparser.Update) (insertSQL string) {
 	tableName := sqlparser.String(stmt.TableExprs)
-	var setColumns []string
-	var setValues []string
-	var whereColumns []string
-	var whereValues []string
+	columnValues := make(ColumnValues, 0)
 
 	for _, expr := range stmt.Exprs {
 		colName := expr.Name.Name.String()
 		colValue := sqlparser.String(expr.Expr)
-
-		setColumns = append(setColumns, colName)
-		setValues = append(setValues, colValue)
+		columnValues.AddIgnore(ColumnValue{
+			Column: colName,
+			Value:  colValue,
+		})
 	}
 	if stmt.Where != nil {
-		columnValues := ParseWhere(stmt.Where, "=")
-		for _, columnValue := range columnValues {
-			whereColumns = append(whereColumns, columnValue.Column)
-			whereValues = append(whereValues, columnValue.Value)
-		}
+		whereColumnValues := ParseWhere(stmt.Where, "=")
+		columnValues.AddIgnore(whereColumnValues...)
 	}
 
-	allColumns := append(setColumns, whereColumns...)
-	allValues := append(setValues, whereValues...)
+	allColumns, allValues := columnValues.Array()
 	insertSQL = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s);", tableName, strings.Join(allColumns, ", "), strings.Join(allValues, ", "))
 	return insertSQL
 }
