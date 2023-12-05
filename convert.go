@@ -21,6 +21,13 @@ func ConvertUpdateToSelect(stmt *sqlparser.Update) (selectSQL string) {
 	return selectSQL
 }
 
+func addBackticks(columnName string) (newName string) {
+	newName = strings.TrimSpace(columnName)
+	newName = strings.Trim(newName, "`")
+	newName = fmt.Sprintf("`%s`", newName)
+	return newName
+}
+
 // ConvertUpdateToInsert 将update 语句转为insert ,在模拟实现replace(set 场景)有用
 func ConvertUpdateToInsert(stmt *sqlparser.Update) (insertSQL string) {
 	tableName := sqlparser.String(stmt.TableExprs)

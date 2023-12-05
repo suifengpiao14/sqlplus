@@ -22,6 +22,7 @@ func (cvs *ColumnValues) Array() (columns []string, values []string) {
 }
 func (cvs *ColumnValues) AddIgnore(columnValues ...ColumnValue) {
 	for _, columnValue := range columnValues {
+		columnValue.Column = addBackticks(columnValue.Column)
 		_, ok := cvs.GetByColumn(columnValue.Column)
 		if ok {
 			continue
@@ -47,7 +48,7 @@ func ParseWhere(whereExpr *sqlparser.Where, operator string) (columnValues Colum
 			if operator != "" && expr.Operator == operator {
 				whereCol := sqlparser.String(expr.Left)
 				whereVal := sqlparser.String(expr.Right)
-				columnValues = append(columnValues, ColumnValue{
+				columnValues.AddIgnore(ColumnValue{
 					Column: whereCol,
 					Value:  whereVal,
 				})
