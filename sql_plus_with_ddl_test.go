@@ -1,6 +1,7 @@
 package sqlplus_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -16,7 +17,9 @@ func TestWithCheckUniqueue(t *testing.T) {
 	sqlStr := `insert into export_template (template_name) values ("dispatch")`
 	selectSqls, err := sqlplus.WithCheckUniqueue(database, sqlStr)
 	require.NoError(t, err)
-	fmt.Println(selectSqls)
+	b, err := json.Marshal(selectSqls)
+	require.NoError(t, err)
+	fmt.Println(string(b))
 
 }
 

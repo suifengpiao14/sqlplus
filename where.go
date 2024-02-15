@@ -9,8 +9,8 @@ import (
 )
 
 type ColumnValue struct {
-	Column string
-	Value  string
+	Column string `json:"column"`
+	Value  string `json:"value"`
 }
 
 type ColumnValues []ColumnValue
