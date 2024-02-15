@@ -1,7 +1,6 @@
 package sqlplus
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -70,14 +69,7 @@ func ConvertInsertToSelect(stmt *sqlparser.Insert, where ColumnValues) (selectSQ
 	// 获取 INSERT 语句的表名
 	tableName := sqlparser.String(stmt.Table)
 	selectField := strings.Join(selectFields, ", ")
-	var w bytes.Buffer
-	for i, kv := range where {
-		if i > 0 {
-			w.WriteString(" and ")
-		}
-		w.WriteString(fmt.Sprintf("`%s`=%s", strings.Trim(kv.Column, "`"), kv.Value))
-	}
 
-	selectSQL = fmt.Sprintf("SELECT %s FROM %s WHERE %s", selectField, tableName, w.String())
+	selectSQL = fmt.Sprintf("SELECT %s FROM %s WHERE %s", selectField, tableName, where.String())
 	return selectSQL
 }

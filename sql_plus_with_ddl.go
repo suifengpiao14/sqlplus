@@ -10,7 +10,7 @@ import (
 )
 
 // WithPlusScene 扩展sql 的where 条件
-func WithCheckUniqueue(database string, sqlStr string) (sqlSelects []string, err error) {
+func WithCheckUniqueue(database string, sqlStr string) (sqlSelects []UniqueueSelectSQL, err error) {
 	if sqlStr == "" {
 		return nil, errors.WithMessage(ERROR_SQL_EMPTY, funcs.GetCallFuncname(0))
 	}
@@ -29,8 +29,13 @@ func WithCheckUniqueue(database string, sqlStr string) (sqlSelects []string, err
 	return sqlSelects, nil
 }
 
+type UniqueueSelectSQL struct {
+	Sql   string       `json:"sql"`
+	Where ColumnValues `json:"where"`
+}
+
 // withInsertCheckUniqueue
-func withInsertCheckUniqueue(database string, stmt *sqlparser.Insert) (sqlSelects []string, err error) {
+func withInsertCheckUniqueue(database string, stmt *sqlparser.Insert) (sqlSelects []UniqueueSelectSQL, err error) {
 
 	// 获取 INSERT 语句的表名
 	tableName := sqlparser.String(stmt.Table)
@@ -79,10 +84,14 @@ func withInsertCheckUniqueue(database string, stmt *sqlparser.Insert) (sqlSelect
 		}
 		rowColumnValues = append(rowColumnValues, columnValues)
 	}
-	sqlSelects = make([]string, 0)
+	sqlSelects = make([]UniqueueSelectSQL, 0)
 	for _, columnValues := range rowColumnValues {
 		selectSql := ConvertInsertToSelect(stmt, columnValues)
-		sqlSelects = append(sqlSelects, selectSql)
+		uniqueueSelectSQL := UniqueueSelectSQL{
+			Sql:   selectSql,
+			Where: columnValues,
+		}
+		sqlSelects = append(sqlSelects, uniqueueSelectSQL)
 	}
 
 	return sqlSelects, nil
