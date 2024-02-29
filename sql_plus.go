@@ -11,7 +11,6 @@ type TableColumn struct {
 	TableName    string            `json:"tableName"`
 	Name         string            `json:"name"`
 	Type         sqlparser.ValType `json:"type"`
-	IsUnique     bool              `json:"isUnique"`
 	DynamicValue string            `json:"value"`
 }
 
@@ -55,7 +54,7 @@ func withPlusWhere(where *sqlparser.Where, tableExprs sqlparser.TableExprs, tabl
 }
 
 // withInsertPlusToColumns 新增sql中增加列
-func withInsertPlusToColumns(insertExpr *sqlparser.Insert, tableName sqlparser.TableName, tableColumns ...TableColumn) {
+func withInsertPlusToColumns(insertExpr *sqlparser.Insert, tableColumns ...TableColumn) {
 	for _, tableColumn := range tableColumns {
 		colIdent := sqlparser.NewColIdent(tableColumn.Name)
 		insertExpr.Columns = append(insertExpr.Columns, colIdent)
@@ -67,7 +66,7 @@ func withInsertPlusToColumns(insertExpr *sqlparser.Insert, tableName sqlparser.T
 }
 
 // withUpdatePlusToColumns 修改sql中增加列
-func withUpdatePlusToColumns(updateExpr *sqlparser.Update, tableExprs sqlparser.TableExprs, tableColumns ...TableColumn) {
+func withUpdatePlusToColumns(updateExpr *sqlparser.Update, tableColumns ...TableColumn) {
 	for _, tableColumn := range tableColumns {
 		colIdent := sqlparser.NewColIdent(tableColumn.Name)
 		column := &sqlparser.ColName{Name: colIdent}
@@ -112,11 +111,11 @@ func WithPlusScene(sqlStr string, scenes Scenes, tableColumns ...TableColumn) (n
 			stmt.Where = withPlusWhere(stmt.Where, stmt.TableExprs, tableColumns...)
 		}
 		if scenes.Exists(Scene_Update_Column) {
-			withUpdatePlusToColumns(stmt, stmt.TableExprs, tableColumns...)
+			withUpdatePlusToColumns(stmt, tableColumns...)
 		}
 	case *sqlparser.Insert:
 		if scenes.Exists(Scene_Insert_Column) {
-			withInsertPlusToColumns(stmt, stmt.Table, tableColumns...)
+			withInsertPlusToColumns(stmt, tableColumns...)
 		}
 	case *sqlparser.Delete:
 		if scenes.Exists(Scene_Delete_Where) {
