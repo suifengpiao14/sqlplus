@@ -29,7 +29,7 @@ func init() {
 		panic(err)
 	}
 	ddl := string(b)
-	err = sqlexecparser.RegisterTableByDDL(database, ddl)
+	err = sqlexecparser.RegisterTableByDDL(ddl)
 	if err != nil {
 		panic(err)
 	}

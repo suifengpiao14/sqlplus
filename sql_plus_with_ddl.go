@@ -30,8 +30,8 @@ func WithCheckUniqueue(database string, sqlStr string) (sqlSelects []UniqueueSel
 }
 
 type UniqueueSelectSQL struct {
-	Sql   string       `json:"sql"`
-	Where ColumnValues `json:"where"`
+	Sql   string                     `json:"sql"`
+	Where sqlexecparser.ColumnValues `json:"where"`
 }
 
 // withInsertCheckUniqueue
@@ -39,7 +39,7 @@ func withInsertCheckUniqueue(database string, stmt *sqlparser.Insert) (sqlSelect
 
 	// 获取 INSERT 语句的表名
 	tableName := sqlparser.String(stmt.Table)
-	table, err := sqlexecparser.GetTable(database, tableName)
+	table, err := sqlexecparser.GetTable(sqlexecparser.DBName(database), sqlexecparser.TableName(tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -48,20 +48,21 @@ func withInsertCheckUniqueue(database string, stmt *sqlparser.Insert) (sqlSelect
 		return nil, nil
 	}
 	rowValues := stmt.Rows.(sqlparser.Values)
-	rowColumnValues := make([]ColumnValues, 0)
+	rowColumnValues := make([]sqlexecparser.ColumnValues, 0)
 	columnLen := len(stmt.Columns)
 
 	for _, valTuple := range rowValues {
-		columnValues := ColumnValues{}
+		columnValues := sqlexecparser.ColumnValues{}
 		for _, colName := range constraint.ColumnNames {
 			columnIndex := 0
 			for columnIndex = 0; columnIndex < columnLen; columnIndex++ {
 				col := stmt.Columns[columnIndex]
-				if strings.EqualFold(sqlparser.String(col), colName) {
+				if strings.EqualFold(sqlparser.String(col), string(colName)) {
 					sqlValue := valTuple[columnIndex].(*sqlparser.SQLVal)
-					columnValue := ColumnValue{
-						Column: sqlparser.String(col),
-						Value:  sqlparser.String(sqlValue),
+					columnValue := sqlexecparser.ColumnValue{
+						Column:   sqlexecparser.ColumnName(sqlparser.String(col)),
+						Value:    sqlparser.String(sqlValue),
+						Operator: sqlparser.EqualStr,
 					}
 					columnValues.AddIgnore(columnValue)
 					break
@@ -75,9 +76,10 @@ func withInsertCheckUniqueue(database string, stmt *sqlparser.Insert) (sqlSelect
 			if columnIndex >= columnLen {
 				defaultValue := tableColumn.DefaultValue
 
-				columnValue := ColumnValue{
-					Column: colName,
-					Value:  defaultValue,
+				columnValue := sqlexecparser.ColumnValue{
+					Column:   colName,
+					Value:    defaultValue,
+					Operator: sqlparser.EqualStr,
 				}
 				columnValues.AddIgnore(columnValue)
 			}
