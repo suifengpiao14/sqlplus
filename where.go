@@ -1,12 +1,16 @@
 package sqlplus
 
 import (
+	"bytes"
+	"fmt"
+	"strings"
+
 	"github.com/blastrain/vitess-sqlparser/sqlparser"
 )
 
 type ColumnValue struct {
-	Column string
-	Value  string
+	Column string `json:"column"`
+	Value  string `json:"value"`
 }
 
 type ColumnValues []ColumnValue
@@ -38,6 +42,17 @@ func (c ColumnValues) GetByColumn(column string) (col *ColumnValue, ok bool) {
 		}
 	}
 	return nil, false
+}
+
+func (c ColumnValues) String() (str string) {
+	var w bytes.Buffer
+	for i, kv := range c {
+		if i > 0 {
+			w.WriteString(" and ")
+		}
+		w.WriteString(fmt.Sprintf("`%s`=%s", strings.Trim(kv.Column, "`"), kv.Value))
+	}
+	return ""
 }
 
 func ParseWhere(whereExpr *sqlparser.Where, operator string) (columnValues ColumnValues) {

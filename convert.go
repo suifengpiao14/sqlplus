@@ -60,7 +60,7 @@ func ConvertDeleteToSelect(stmt *sqlparser.Delete) (selectSQL string) {
 	return selectSQL
 }
 
-func ConvertInsertToSelect(stmt *sqlparser.Insert, primaryKey string, primaryKeyValue string) (selectSQL string) {
+func ConvertInsertToSelect(stmt *sqlparser.Insert, where ColumnValues) (selectSQL string) {
 	// 获取 INSERT 语句的字段列表
 	var selectFields []string
 	for _, col := range stmt.Columns {
@@ -69,7 +69,7 @@ func ConvertInsertToSelect(stmt *sqlparser.Insert, primaryKey string, primaryKey
 	// 获取 INSERT 语句的表名
 	tableName := sqlparser.String(stmt.Table)
 	selectField := strings.Join(selectFields, ", ")
-	where := fmt.Sprintf("`%s`=%s", primaryKey, primaryKeyValue)
-	selectSQL = fmt.Sprintf("SELECT %s FROM %s WHERE %s", selectField, tableName, where)
+
+	selectSQL = fmt.Sprintf("SELECT %s FROM %s WHERE %s", selectField, tableName, where.String())
 	return selectSQL
 }
