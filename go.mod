@@ -8,7 +8,7 @@ require (
 	github.com/spf13/cast v1.6.0
 	github.com/stretchr/testify v1.8.4
 	github.com/suifengpiao14/funcs v0.0.18
-	github.com/suifengpiao14/sqlexec v0.0.23
+	github.com/suifengpiao14/sqlexec v0.0.24
 )
 
 require (
@@ -17,18 +17,17 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/juju/errors v1.0.0 // indirect
-	github.com/opentracing/opentracing-go v1.0.2 // indirect
 	github.com/pingcap/errors v0.11.4 // indirect
 	github.com/pingcap/log v0.0.0-20190715063458-479153f07ebd // indirect
 	github.com/pingcap/parser v3.1.2+incompatible // indirect
 	github.com/pingcap/pd v2.1.0-rc.4+incompatible // indirect
-	github.com/pingcap/tidb v0.0.0-20190912055946-5c48d93368d4 // indirect
+	github.com/pingcap/tidb v0.0.0-20190929123532-694e086e7914 // indirect
 	github.com/pingcap/tipb v0.0.0-20240227061755-3670eddec8d6 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/suifengpiao14/ddl-executor v0.0.2 // indirect
+	github.com/suifengpiao14/ddl-executor v0.0.3 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.uber.org/atomic v1.3.2 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
