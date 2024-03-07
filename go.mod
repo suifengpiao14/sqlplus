@@ -18,7 +18,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/juju/errors v1.0.0 // indirect
 	github.com/pingcap/errors v0.11.4 // indirect
-	github.com/pingcap/log v1.1.0 // indirect
+	github.com/pingcap/log v0.0.0-20190715063458-479153f07ebd // indirect
 	github.com/pingcap/parser v3.1.2+incompatible // indirect
 	github.com/pingcap/pd v2.1.0-rc.4+incompatible // indirect
 	github.com/pingcap/tidb v0.0.0-20191023085059-c9000abdc216 // indirect
