@@ -219,8 +219,8 @@ github.com/suifengpiao14/ddl-executor v0.0.4 h1:VjGsG7zPOejwi2TYooWH5aRFXgRh+97i
 github.com/suifengpiao14/ddl-executor v0.0.4/go.mod h1:1jZAWqLCKRhYaYNv+ecAZsWoI813fHL6rUaRRfmo724=
 github.com/suifengpiao14/funcs v0.0.18 h1:TQZ9EPPnzGBFNIIpHO+I/y38ufO0osZlGtm49P2DNkA=
 github.com/suifengpiao14/funcs v0.0.18/go.mod h1:g95inzlUrS2Vtyvv5SjVFOnOeX7ZBPWwyKuEMMW+g7U=
-github.com/suifengpiao14/sqlexec v0.0.28 h1:n7ggDkfQoA/VjGZvTXY3yM2AQkc6Acwgv+Idsdp5J4I=
-github.com/suifengpiao14/sqlexec v0.0.28/go.mod h1:DzL1ZXQyrNJnQ7eP77jgHEYobySLja68dD/CHUlQXq8=
+github.com/suifengpiao14/sqlexec v0.0.29 h1:IAz1k7nKSTPFvTysZSQ9KgQYYv5KI6roK/RgWi562vU=
+github.com/suifengpiao14/sqlexec v0.0.29/go.mod h1:DzL1ZXQyrNJnQ7eP77jgHEYobySLja68dD/CHUlQXq8=
 github.com/syndtr/goleveldb v0.0.0-20180815032940-ae2bd5eed72d/go.mod h1:Z4AUp2Km+PwemOoO/VB5AOx9XSsIItzFjoJlOSiYmn0=
 github.com/tiancaiamao/appdash v0.0.0-20181126055449-889f96f722a2/go.mod h1:2PfKggNGDuadAa0LElHrByyrz4JPZ9fFx6Gs7nx7ZZU=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=

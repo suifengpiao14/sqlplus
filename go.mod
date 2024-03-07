@@ -8,7 +8,7 @@ require (
 	github.com/spf13/cast v1.6.0
 	github.com/stretchr/testify v1.8.4
 	github.com/suifengpiao14/funcs v0.0.18
-	github.com/suifengpiao14/sqlexec v0.0.28
+	github.com/suifengpiao14/sqlexec v0.0.29
 )
 
 require (
